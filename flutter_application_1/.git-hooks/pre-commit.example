@@ -1,0 +1,72 @@
+#!/bin/sh
+#
+# Git Pre-commit Hook - Prevents committing sensitive config files
+#
+# To install this hook:
+#   1. Copy to: .git/hooks/pre-commit
+#   2. Make executable: chmod +x .git/hooks/pre-commit
+#
+# This hook checks if you're trying to commit sensitive configuration files
+# and blocks the commit if found.
+
+echo "Running pre-commit security check..."
+
+# Files that should NEVER be committed
+SENSITIVE_FILES=(
+    "lib/config/prod_config.dart"
+    "lib/config/staging_config.dart"
+    ".env"
+    ".env.local"
+    ".env.production"
+    ".env.staging"
+)
+
+# Check if any sensitive files are staged
+FOUND_SENSITIVE=0
+
+for file in "${SENSITIVE_FILES[@]}"; do
+    if git diff --cached --name-only | grep -q "^$file$"; then
+        echo "❌ ERROR: Attempting to commit sensitive file: $file"
+        FOUND_SENSITIVE=1
+    fi
+done
+
+# If sensitive files found, abort commit
+if [ $FOUND_SENSITIVE -eq 1 ]; then
+    echo ""
+    echo "🚨 COMMIT BLOCKED FOR SECURITY 🚨"
+    echo ""
+    echo "You are trying to commit sensitive configuration files."
+    echo "These files contain API keys and should NOT be in version control."
+    echo ""
+    echo "To fix this:"
+    echo "  1. Remove the files from staging:"
+    echo "     git reset HEAD lib/config/prod_config.dart"
+    echo "     git reset HEAD lib/config/staging_config.dart"
+    echo ""
+    echo "  2. Make sure they're in .gitignore (they already should be)"
+    echo ""
+    echo "  3. Try committing again"
+    echo ""
+    exit 1
+fi
+
+# Check for accidental API key patterns in any staged files
+if git diff --cached | grep -i "golbot_mobile_.*_api_key" | grep -v "YOUR_.*_API_KEY_HERE" | grep -v "template"; then
+    echo ""
+    echo "⚠️  WARNING: Found what looks like real API keys in your changes!"
+    echo ""
+    echo "Please review your changes and make sure you're not committing:"
+    echo "  - Hardcoded API keys"
+    echo "  - Sensitive credentials"
+    echo "  - Production secrets"
+    echo ""
+    read -p "Are you sure you want to continue? (y/N): " confirm
+    if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+        echo "Commit aborted."
+        exit 1
+    fi
+fi
+
+echo "✅ Security check passed"
+exit 0
