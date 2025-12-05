@@ -13,6 +13,8 @@ import helmet from "helmet";
 import logger from "./utils/logger.js";
 import { responseMiddleware } from "./utils/response.js";
 
+import "./config/demoConfig.js";
+
 // routes
 import AuthRoute from "./routes/authRoute.js";
 import AdminRoute from "./routes/adminRoute.js";
