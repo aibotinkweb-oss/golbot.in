@@ -9,6 +9,7 @@ const environment = process.argv[2] || 'local';
 const rootDir = path.resolve(__dirname, '..');
 
 const envFiles = {
+  development: '.env.local',
   local: '.env.local',
   stage: '.env.stage',
   prod: '.env.prod'
@@ -17,7 +18,7 @@ const envFiles = {
 // Validate environment argument
 if (!envFiles[environment]) {
   console.error(`Error: Invalid environment "${environment}"`);
-  console.error(`Valid environments: local, stage, prod`);
+  console.error(`Valid environments: development, local, stage, prod`);
   process.exit(1);
 }
 
@@ -32,6 +33,21 @@ if (!fs.existsSync(sourceFile)) {
 
 try {
   fs.copyFileSync(sourceFile, targetFile);
+  
+  // Post-copy domain check to ensure 'app.golbot.in' is never re-introduced
+  try {
+    let content = fs.readFileSync(targetFile, 'utf8');
+    if (content.includes('app.golbot.in')) {
+      const updatedContent = content.replace(/https?:\/\/app\.golbot\.in/g, (match) => {
+        return match.replace('app.', '');
+      });
+      fs.writeFileSync(targetFile, updatedContent);
+      console.log('✨ Domain corrected: app.golbot.in -> golbot.in');
+    }
+  } catch (err) {
+    console.error('⚠️  Warning: Domain integrity check failed');
+  }
+
   console.log(`✓ Environment set to: ${environment.toUpperCase()}`);
   console.log(`✓ Copied ${envFiles[environment]} to .env`);
 } catch (error) {
